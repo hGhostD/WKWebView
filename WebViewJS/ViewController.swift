@@ -21,7 +21,10 @@ class ViewController: UIViewController,WKNavigationDelegate,WKUIDelegate {
         progress.trackTintColor = UIColor.clear
         return progress
     }()
-
+    
+    deinit {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "webViewApp")
+    }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(true)
         self.progressView.frame = CGRect(x: 0, y: 0, width: self.view.frame.size.width, height: 2)
@@ -33,8 +36,8 @@ class ViewController: UIViewController,WKNavigationDelegate,WKUIDelegate {
 
 
         //监听状态
-//        webView.addObserver(self, forKeyPath: "loading", options: .New, context: nil)
-//        webView.addObserver(self, forKeyPath: "estimatedProgress", options: .New, context: nil)
+//        webView.addObserver(self, forKeyPath: "loading", options: .new, context: nil)
+        webView.addObserver(self, forKeyPath: "estimatedProgress", options: .new, context: nil)
     }
 
     override func viewDidLoad() {
@@ -54,22 +57,15 @@ class ViewController: UIViewController,WKNavigationDelegate,WKUIDelegate {
         webView = WKWebView(frame: self.view.frame, configuration: config)
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        self.view.addSubview(webView)
 
         //加载本地页面
         webView.load(URLRequest(url: NSURL.fileURL(withPath: Bundle.main.path(forResource: "index", ofType: "html")!)))
+//        webView.load(URLRequest.init(url: URL.init(string: "http://192.168.2.168:8080/")!))
 
         //允许手势，后退前进等操作
         webView.allowsBackForwardNavigationGestures = true
         self.view.addSubview(webView)
         self.view.addSubview(progressView)
-    }
-
-    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        self.navigationItem.title = "加载中。。。"
-        UIView.animate(withDuration: 0.5) { 
-            self.progressView.progress = Float(self.webView.estimatedProgress)
-        }
     }
 
     //alert捕获
@@ -86,10 +82,30 @@ class ViewController: UIViewController,WKNavigationDelegate,WKUIDelegate {
     //被js调用的原生方法
     func hello(name:String){
         let alert = UIAlertController(title: "app", message: "hello :\(name)", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "ok", style: .default, handler:nil))
+        alert.addAction(UIAlertAction(title: "ok", style: .default, handler:{ _ in 
+            self.webView.evaluateJavaScript("hu('这是来自iOS的调用,执行了JS代码')") { (item, error) in
+                print(item ?? "错误",error ?? "没有错误")
+            }
+        }))
         alert.addAction(UIAlertAction(title: "cancel", style: .cancel, handler: nil))
         self.present(alert, animated: true, completion: nil)
+        
     }
+    
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        if keyPath == "estimatedProgress" {
+            progressView.isHidden = false
+            
+            self.progressView.setProgress(Float(self.webView.estimatedProgress), animated: true)
+            if webView.estimatedProgress >= 1 {
+                
+                UIView.animate(withDuration: 0.5, delay: 0, options: .curveEaseOut, animations: {
+                    self.progressView.isHidden = true
+                }, completion: nil)
+            }
+        }
+    }
+
 }
 
 extension ViewController: WKScriptMessageHandler {

@@ -28,6 +28,11 @@ var getName = function(){
 	return "liuyanwei"
 }
 
+var hu = function(message) {
+    console.log(message)
+    alert(message)
+    return message
+}
 
 var btnsInit = function(){
 	var btns = ["js-btn:调用自身js的hi方法","js-btn:调用ios的hello方法"]
